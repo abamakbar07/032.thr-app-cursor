@@ -22,7 +22,7 @@ export default function Home() {
             Add fun to your family events with interactive games and rewards
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in-up animation-delay-600">
-            <Link href="/game">
+            <Link href="/game/join">
               <Button 
                 size="lg" 
                 className="px-8 py-4 shadow-lg hover:shadow-blue-500/20 transition-all duration-300"
@@ -30,13 +30,13 @@ export default function Home() {
                 Join a Game
               </Button>
             </Link>
-            <Link href="/dashboard">
+            <Link href="/dashboard/rooms/new">
               <Button 
                 variant="outline" 
                 size="lg" 
                 className="px-8 py-4 hover:bg-blue-50 dark:hover:bg-slate-700 transition-all duration-300"
               >
-                Create an Event
+                Create Game Room
               </Button>
             </Link>
           </div>
@@ -97,14 +97,14 @@ export default function Home() {
             
             <div className="flex flex-col items-center text-center relative z-10">
               <div className="w-16 h-16 rounded-full bg-blue-500 text-white flex items-center justify-center text-xl font-bold mb-6 shadow-lg hover:shadow-blue-500/20 transition-all duration-300 hover:scale-110">1</div>
-              <h3 className="text-xl font-semibold mb-3">Create an Event</h3>
-              <p className="text-slate-600 dark:text-slate-400">Sign up and create a new event with custom games and prizes</p>
+              <h3 className="text-xl font-semibold mb-3">Create Game Room</h3>
+              <p className="text-slate-600 dark:text-slate-400">Sign up and create a new game room with custom games and prizes</p>
             </div>
             
             <div className="flex flex-col items-center text-center relative z-10">
               <div className="w-16 h-16 rounded-full bg-blue-500 text-white flex items-center justify-center text-xl font-bold mb-6 shadow-lg hover:shadow-blue-500/20 transition-all duration-300 hover:scale-110">2</div>
               <h3 className="text-xl font-semibold mb-3">Invite Participants</h3>
-              <p className="text-slate-600 dark:text-slate-400">Share the game code or QR code with family members</p>
+              <p className="text-slate-600 dark:text-slate-400">Share the room code or QR code with family members</p>
             </div>
             
             <div className="flex flex-col items-center text-center relative z-10">
@@ -124,16 +124,27 @@ export default function Home() {
         
         <div className="max-w-3xl mx-auto relative z-10">
           <h2 className="text-3xl md:text-5xl font-bold mb-6">Ready to get started?</h2>
-          <p className="text-xl mb-10 text-blue-100">Create an event for your next family gathering today!</p>
-          <Link href="/signup">
-            <Button 
-              variant="secondary" 
-              size="lg" 
-              className="px-10 py-4 shadow-lg hover:shadow-white/20 transition-all duration-300 transform hover:scale-105"
-            >
-              Create Account
-            </Button>
-          </Link>
+          <p className="text-xl mb-10 text-blue-100">Create a game room for your next family gathering today!</p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link href="/dashboard/rooms/new">
+              <Button 
+                variant="secondary" 
+                size="lg" 
+                className="px-10 py-4 shadow-lg hover:shadow-white/20 transition-all duration-300 transform hover:scale-105"
+              >
+                Create Game Room
+              </Button>
+            </Link>
+            <Link href="/game/join">
+              <Button 
+                variant="outline" 
+                size="lg" 
+                className="px-10 py-4 shadow-lg border-white text-white hover:bg-white/10 transition-all duration-300 transform hover:scale-105"
+              >
+                Join Existing Room
+              </Button>
+            </Link>
+          </div>
         </div>
       </section>
     </>

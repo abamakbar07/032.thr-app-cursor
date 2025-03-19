@@ -2,7 +2,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import Link from "next/link";
 import { getGameRooms, getThrSpins } from "@/lib/actions";
-import { getServerSession } from "next-auth";
+import { auth } from "@/auth";
 import { IGameRoom, RewardTier } from "@/models/GameRoom";
 import { IThrSpin } from "@/models/ThrSpin";
 import { redirect } from "next/navigation";
@@ -16,8 +16,9 @@ interface RoomWithRewards {
 
 // This is a server component
 export default async function RewardsPage() {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
+  const session = await auth();
+  
+  if (!session?.user) {
     return redirect('/signin');
   }
   

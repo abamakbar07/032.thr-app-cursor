@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import Link from "next/link";
 import { getGameRooms, getQuestions } from "@/lib/actions";
-import { getServerSession } from "next-auth";
+import { auth } from "@/auth";
 import { IQuestion } from "@/models/Question";
 import { IGameRoom } from "@/models/GameRoom";
 import { redirect } from "next/navigation";
@@ -16,8 +16,9 @@ interface ExtendedQuestion extends IQuestion {
 
 // This is a server component
 export default async function QuestionsPage() {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
+  const session = await auth();
+  
+  if (!session?.user) {
     return redirect('/signin');
   }
   

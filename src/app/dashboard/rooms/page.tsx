@@ -2,15 +2,16 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import Link from "next/link";
 import { getGameRooms, getCousinEntries, getQuestions } from "@/lib/actions";
-import { getServerSession } from "next-auth";
+import { auth } from "@/auth";
 import { IGameRoom } from "@/models/GameRoom";
 import { redirect } from "next/navigation";
 import mongoose from "mongoose";
 
 // This is a server component
 export default async function RoomsPage() {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
+  const session = await auth();
+  
+  if (!session?.user) {
     return redirect('/signin');
   }
   
