@@ -92,27 +92,67 @@ export default async function DashboardPageLayout({
 }) {
   const session = await auth();
 
-  if (!session?.user) {
-    redirect('/signin');
+  if (!session) {
+    redirect("/signin");
   }
 
-  // Determine if user is an admin
-  const isAdmin = session.user.role === 'admin';
-  // Use admin or participant sidebar based on role
-  const sidebarItems = isAdmin ? adminSidebarItems : participantSidebarItems;
-  
-  // Get user data from session
-  const userName = session.user.name || 'User';
-  // Use a default avatar if no image is provided
-  const userImage = session.user.image || '/default-avatar.svg';
+  const isAdmin = session.user.role === "admin";
+
+  const sidebarItems = isAdmin
+    ? [
+        {
+          title: "Dashboard",
+          href: "/dashboard",
+          icon: "home",
+        },
+        {
+          title: "Questions",
+          href: "/dashboard/questions",
+          icon: "question",
+        },
+        {
+          title: "Rewards",
+          href: "/dashboard/rewards",
+          icon: "gift",
+        },
+        {
+          title: "Rooms",
+          href: "/dashboard/rooms",
+          icon: "users",
+        },
+      ]
+    : [
+        {
+          title: "Dashboard",
+          href: "/dashboard",
+          icon: "home",
+        },
+        {
+          title: "Join Game",
+          href: "/game/join",
+          icon: "gamepad",
+        },
+      ];
+
+  const navItems = [
+    {
+      title: "Profile",
+      href: "/dashboard/profile",
+      icon: "user",
+    },
+    {
+      title: "Settings",
+      href: "/dashboard/settings",
+      icon: "settings",
+    },
+  ];
 
   return (
     <DashboardLayout
       sidebarItems={sidebarItems}
       navItems={navItems}
-      userRole={isAdmin ? 'admin' : 'cousin'}
-      userName={userName}
-      userImage={userImage}
+      userRole={isAdmin ? "admin" : "cousin"}
+      userName={session.user.name}
     >
       <div className="py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
