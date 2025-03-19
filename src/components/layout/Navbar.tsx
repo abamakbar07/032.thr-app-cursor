@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/utils/cn';
 
@@ -69,14 +70,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100">
                     {userRole === 'admin' ? 'Admin' : 'Cousin'}
                   </span>
-                  <div className="h-8 w-8 rounded-full bg-gray-200 overflow-hidden">
-                    {userImage ? (
-                      <img src={userImage} alt={userName || 'User'} className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="h-full w-full flex items-center justify-center bg-gray-300 text-gray-600">
-                        {(userName?.charAt(0) || 'U').toUpperCase()}
-                      </div>
-                    )}
+                  <div className="relative h-8 w-8 rounded-full overflow-hidden">
+                    <Image
+                      src={userImage || '/default-avatar.svg'}
+                      alt={userName || 'User'}
+                      fill
+                      className="object-cover"
+                      priority
+                    />
                   </div>
                 </div>
               </div>
@@ -133,14 +134,14 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="border-t border-gray-200 dark:border-gray-700 pt-4 pb-3">
             <div className="flex items-center px-4">
               <div className="flex-shrink-0">
-                <div className="h-10 w-10 rounded-full bg-gray-200 overflow-hidden">
-                  {userImage ? (
-                    <img src={userImage} alt={userName || 'User'} className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="h-full w-full flex items-center justify-center bg-gray-300 text-gray-600">
-                      {(userName?.charAt(0) || 'U').toUpperCase()}
-                    </div>
-                  )}
+                <div className="relative h-10 w-10 rounded-full overflow-hidden">
+                  <Image
+                    src={userImage || '/default-avatar.svg'}
+                    alt={userName || 'User'}
+                    fill
+                    className="object-cover"
+                    priority
+                  />
                 </div>
               </div>
               <div className="ml-3">

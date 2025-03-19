@@ -90,6 +90,18 @@ export async function getGameRooms(userId: string) {
     return { success: true, data: gameRooms };
   } catch (error: any) {
     console.error('Get game rooms error:', error);
+    
+    // Check for connection timeout errors
+    if (error.name === 'MongooseServerSelectionError' || 
+        error.message?.includes('ETIMEOUT') || 
+        error.code === 'ETIMEOUT') {
+      return { 
+        success: false, 
+        error: 'Database connection timeout. Please try again later.',
+        connectionError: true
+      };
+    }
+    
     return { 
       success: false, 
       error: error.message || 'Failed to get game rooms' 
