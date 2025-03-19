@@ -1,0 +1,71 @@
+---
+title: "Family Gacha THR App - Progress Summary"
+date: "2025-03-19"
+---
+
+## Summary of Progress
+
+We've successfully set up the foundation for the **Family Gacha THR App** with:
+
+### Project Initialization
+- Created a **Next.js** project with **TypeScript, TailwindCSS, and the App Router**
+- Set up the basic folder structure
+- Installed necessary dependencies
+
+### Database Models
+- **User** model with `admin` and `cousin` roles
+- **GameRoom** model for creating game rooms with customizable reward tiers
+- **Question** model for trivia questions
+- **ThrSpin** model to track gacha spins and rewards
+- **SpinToken** model for earned tokens
+- **CousinEntry** model for participant registration
+
+### Authentication
+- Configured **NextAuth.js** for user authentication
+- Set up **middleware** for route protection
+- Created types for **session management**
+
+### Server Actions
+- Implemented actions for **user management**
+- Created **game room management** actions
+- Set up **question creation and answering** logic
+- Implemented the **gacha spin mechanism** with weighted probabilities
+- Added **participant entry management**
+
+### Utilities
+- Created **helper functions** for generating codes and QR codes
+- Set up **validation utilities** for reward tiers
+- Added **formatting utilities** for currency and dates
+
+## Next Steps to Complete the Project
+
+To complete the project, we need to:
+
+### User Interface
+- Create the **admin dashboard** and **game room management UI**
+- Build the **question editor** and **bulk upload interface**
+- Implement the **gacha wheel component** with animations
+- Design the **participant entry and game screens**
+
+### Authentication Pages
+- Build **signin and signup pages**
+- Create **secure entry validation** for cousins
+
+### Game Flow
+- Implement **real-time question updates**
+- Create the **trivia game interface**
+- Build the **gacha wheel spin animation**
+- Design the **reward display**
+
+### Additional Features
+- **Leaderboard functionality**
+- **Admin reporting tools**
+- **Export/import functionality** for questions
+- **QR code generation and management**
+
+### Testing
+- **Unit testing** for models and actions
+- **Integration testing** for game flow
+- **End-to-end testing** for complete user journeys
+
+This foundation provides all the essential functionality for the **Family Gacha THR App**. You can now proceed to build the **user interface components** and complete the implementation of the **game mechanics** using the server actions we've created.
