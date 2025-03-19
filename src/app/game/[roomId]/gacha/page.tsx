@@ -58,7 +58,7 @@ export default async function GachaPage({ params }: { params: { roomId: string }
   }
 
   return (
-    <div className="flex flex-col items-center min-h-screen p-4 bg-gray-50">
+    <div className="flex flex-col items-center p-4 bg-gray-50">
       <ClientGachaPage
         roomId={roomId}
         initialTokenCount={tokenCount}

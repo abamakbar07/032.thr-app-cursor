@@ -1,5 +1,4 @@
 import React, { ReactNode } from 'react';
-import { Navbar } from './Navbar';
 import { cn } from '@/utils/cn';
 
 interface SidebarItem {
@@ -28,14 +27,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   userImage,
 }) => {
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <Navbar
-        items={navItems}
-        userRole={userRole}
-        userName={userName}
-        userImage={userImage}
-      />
-
+    <div className="bg-gray-50 dark:bg-gray-900">
       <div className="flex">
         {/* Sidebar */}
         <div className="hidden md:block w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 min-h-[calc(100vh-4rem)]">
