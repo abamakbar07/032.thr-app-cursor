@@ -6,7 +6,6 @@ import { getGameRooms, getQuestions } from "@/lib/actions";
 import { getServerSession } from "next-auth";
 import { IQuestion } from "@/models/Question";
 import { IGameRoom } from "@/models/GameRoom";
-import { useState } from "react";
 import { redirect } from "next/navigation";
 import mongoose from "mongoose";
 
