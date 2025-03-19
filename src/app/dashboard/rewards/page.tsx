@@ -1,179 +1,212 @@
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import Link from "next/link";
+import { getGameRooms, getThrSpins } from "@/lib/actions";
+import { getServerSession } from "next-auth";
+import { IGameRoom, RewardTier } from "@/models/GameRoom";
+import { IThrSpin } from "@/models/ThrSpin";
+import { redirect } from "next/navigation";
+import mongoose from "mongoose";
 
-const rewards = [
-  {
-    id: 1,
-    name: "Family Movie Night",
-    description: "Choose a movie and snacks for the whole family",
-    category: "Experience",
-    points: 100,
-    available: true,
-    quantity: 5,
-  },
-  {
-    id: 2,
-    name: "Game Console Time",
-    description: "Extra gaming time for the winner",
-    category: "Privilege",
-    points: 50,
-    available: true,
-    quantity: 10,
-  },
-  {
-    id: 3,
-    name: "Special Dessert",
-    description: "Choose your favorite dessert for the next family dinner",
-    category: "Food",
-    points: 30,
-    available: false,
-    quantity: 0,
-  },
-];
+interface RoomWithRewards {
+  room: IGameRoom;
+  spinCount: number;
+  totalReward: number;
+}
 
-const categories = ["All", "Experience", "Privilege", "Food", "Gifts", "Activities"];
+// This is a server component
+export default async function RewardsPage() {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    return redirect('/signin');
+  }
+  
+  const userId = session.user.id as string;
+  let roomsWithRewards: RoomWithRewards[] = [];
+  let error = "";
+  
+  // Fetch game rooms
+  const { data: gameRoomsData = [], error: roomsError } = await getGameRooms(userId) || { data: [] };
+  if (roomsError) {
+    error = `Error fetching game rooms: ${roomsError}`;
+  } else {
+    const rooms = gameRoomsData;
+    
+    // Get spin data for each room
+    if (rooms.length > 0) {
+      const rewardsPromises = rooms.map(async (room) => {
+        const roomId = (room._id as mongoose.Types.ObjectId).toString();
+        const { data: spinsData = { spins: [], totalEarnings: 0 } } = await getThrSpins(userId, roomId) || { data: { spins: [], totalEarnings: 0 } };
+        
+        return {
+          room,
+          spinCount: spinsData.spins.length,
+          totalReward: spinsData.totalEarnings
+        };
+      });
+      
+      roomsWithRewards = await Promise.all(rewardsPromises);
+    }
+  }
 
-export default function RewardsPage() {
+  // Format currency
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0,
+    }).format(amount);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Rewards</h1>
+          <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">THR Rewards</h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Manage prizes and rewards for your family events.
+            Manage reward tiers and track THR distribution.
           </p>
         </div>
-        <Link href="/dashboard/rewards/new">
-          <Button>Add New Reward</Button>
-        </Link>
-      </div>
-
-      {/* Filters */}
-      <Card className="p-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor="search" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-              Search
-            </label>
-            <Input
-              type="text"
-              id="search"
-              placeholder="Search rewards..."
-              className="mt-1"
-            />
-          </div>
-          <div>
-            <label htmlFor="category" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-              Category
-            </label>
-            <select
-              id="category"
-              className="mt-1 block w-full rounded-md border-slate-300 dark:border-slate-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-800 dark:text-white sm:text-sm"
-            >
-              {categories.map((category) => (
-                <option key={category} value={category.toLowerCase()}>
-                  {category}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className="flex space-x-2">
+          {roomsWithRewards.length > 0 ? (
+            <Link href={`/dashboard/rooms/${(roomsWithRewards[0].room._id as mongoose.Types.ObjectId).toString()}/edit`}>
+              <Button>Edit Reward Tiers</Button>
+            </Link>
+          ) : (
+            <Link href="/dashboard/rooms/new">
+              <Button>Create Game Room</Button>
+            </Link>
+          )}
         </div>
-      </Card>
-
-      {/* Rewards Grid */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {rewards.map((reward) => (
-          <Card key={reward.id} className="p-6">
-            <div className="flex justify-between items-start">
-              <div>
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-                  {reward.name}
-                </h3>
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                  {reward.description}
-                </p>
-              </div>
-              <span
-                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  reward.available
-                    ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
-                    : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
-                }`}
-              >
-                {reward.available ? "Available" : "Out of Stock"}
-              </span>
-            </div>
-            <div className="mt-4 flex items-center space-x-4 text-sm text-slate-500 dark:text-slate-400">
-              <span className="flex items-center">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={1.5}
-                  stroke="currentColor"
-                  className="w-4 h-4 mr-1"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"
-                  />
-                </svg>
-                {reward.category}
-              </span>
-              <span className="flex items-center">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={1.5}
-                  stroke="currentColor"
-                  className="w-4 h-4 mr-1"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-2.171-1.879-5.721-1.879-7.892 0L2.25 13.5V3h1.5v10.5z"
-                  />
-                </svg>
-                {reward.points} points
-              </span>
-              <span className="flex items-center">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={1.5}
-                  stroke="currentColor"
-                  className="w-4 h-4 mr-1"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25m-1.125-3.75h.008v.008h-.008V3.75zm0 0h-.008V3.75h.008V3.75z"
-                  />
-                </svg>
-                {reward.quantity} left
-              </span>
-            </div>
-            <div className="mt-4 flex space-x-3">
-              <Link href={`/dashboard/rewards/${reward.id}/edit`} className="flex-1">
-                <Button variant="outline" className="w-full">
-                  Edit
-                </Button>
-              </Link>
-              <Button
-                variant="outline"
-                className="flex-1 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-              >
-                Delete
-              </Button>
-            </div>
-          </Card>
-        ))}
       </div>
+
+      {error && (
+        <Card className="p-4 bg-red-50 text-red-800 dark:bg-red-900 dark:text-red-200">
+          {error}
+        </Card>
+      )}
+
+      {roomsWithRewards.length === 0 && !error && (
+        <Card className="p-4 bg-yellow-50 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+          You need to create a game room with reward tiers first.
+        </Card>
+      )}
+
+      {/* Room Rewards Summary */}
+      {roomsWithRewards.length > 0 && (
+        <div className="space-y-6">
+          {roomsWithRewards.map(({ room, spinCount, totalReward }) => (
+            <Card key={(room._id as mongoose.Types.ObjectId).toString()} className="p-6">
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                  {room.name}
+                </h3>
+                <div className="mt-2 flex flex-wrap gap-4 text-sm text-slate-500 dark:text-slate-400">
+                  <span className="flex items-center">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      strokeWidth={1.5}
+                      stroke="currentColor"
+                      className="w-4 h-4 mr-1"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M15.91 11.672a.375.375 0 010 .656l-5.603 3.113a.375.375 0 01-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112z"
+                      />
+                    </svg>
+                    Wheel Spins: {spinCount}
+                  </span>
+                  <span className="flex items-center">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      strokeWidth={1.5}
+                      stroke="currentColor"
+                      className="w-4 h-4 mr-1"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-2.171-1.879-5.721-1.879-7.892 0L2.25 13.5V3h1.5v10.5z"
+                      />
+                    </svg>
+                    Total THR: {formatCurrency(totalReward)}
+                  </span>
+                  <span className="flex items-center">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      strokeWidth={1.5}
+                      stroke="currentColor"
+                      className="w-4 h-4 mr-1"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M16.5 3.75V16.5L12 14.25 7.5 16.5V3.75m9 0H18A2.25 2.25 0 0120.25 6v12A2.25 2.25 0 0118 20.25H6A2.25 2.25 0 013.75 18V6A2.25 2.25 0 016 3.75h1.5m9 0h-9"
+                      />
+                    </svg>
+                    Access Code: {room.code}
+                  </span>
+                </div>
+              </div>
+
+              {/* Reward Tiers */}
+              <div className="mt-4">
+                <h4 className="font-medium text-slate-900 dark:text-white mb-2">Reward Tiers</h4>
+                <div className="space-y-2">
+                  {room.rewardTiers.map((tier, index) => (
+                    <div key={index} className="p-3 bg-slate-50 dark:bg-slate-800 rounded-md">
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium text-slate-900 dark:text-white">
+                          {tier.name}
+                        </span>
+                        <span className="text-green-600 dark:text-green-400 font-medium">
+                          {formatCurrency(tier.thrAmount)}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex items-center justify-between">
+                        <div className="w-2/3 bg-slate-200 dark:bg-slate-700 rounded-full h-2">
+                          <div
+                            className="bg-blue-600 h-2 rounded-full"
+                            style={{ width: `${tier.probability}%` }}
+                          ></div>
+                        </div>
+                        <span className="text-sm text-slate-500 dark:text-slate-400">
+                          {tier.probability}% chance
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="mt-4 flex space-x-3">
+                <Link href={`/dashboard/rooms/${(room._id as mongoose.Types.ObjectId).toString()}/edit`} className="flex-1">
+                  <Button variant="outline" className="w-full">
+                    Edit Tiers
+                  </Button>
+                </Link>
+                <Link href={`/dashboard/rooms/${(room._id as mongoose.Types.ObjectId).toString()}/spins`} className="flex-1">
+                  <Button variant="outline" className="w-full">
+                    View Spins
+                  </Button>
+                </Link>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 } 
