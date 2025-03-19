@@ -140,6 +140,46 @@ export async function getGameRoom(roomIdOrCode: string) {
   }
 }
 
+export async function updateGameRoom(roomId: string, formData: { 
+  name: string, 
+  description?: string, 
+  isActive: boolean, 
+  rewardTiers: { name: string, count: number, thrAmount: number }[] 
+}) {
+  try {
+    await connectToDatabase();
+    
+    // Find the room first to make sure it exists
+    const existingRoom = await GameRoom.findById(roomId);
+    if (!existingRoom) {
+      return { success: false, error: 'Game room not found' };
+    }
+    
+    // Update the room
+    const updatedRoom = await GameRoom.findByIdAndUpdate(
+      roomId,
+      {
+        name: formData.name,
+        description: formData.description,
+        isActive: formData.isActive,
+        rewardTiers: formData.rewardTiers,
+      },
+      { new: true, runValidators: true }
+    );
+    
+    revalidatePath(`/dashboard/rooms`);
+    revalidatePath(`/dashboard/rooms/${roomId}`);
+    
+    return { success: true, data: updatedRoom };
+  } catch (error: any) {
+    console.error('Update game room error:', error);
+    return { 
+      success: false, 
+      error: error.message || 'Failed to update game room' 
+    };
+  }
+}
+
 // Question actions
 export async function createQuestion(roomId: string, formData: QuestionFormData) {
   try {
@@ -160,6 +200,71 @@ export async function createQuestion(roomId: string, formData: QuestionFormData)
     return { 
       success: false, 
       error: error.message || 'Failed to create question' 
+    };
+  }
+}
+
+export async function updateQuestion(questionId: string, formData: QuestionFormData) {
+  try {
+    await connectToDatabase();
+    
+    // Find the question first to make sure it exists
+    const existingQuestion = await Question.findById(questionId);
+    if (!existingQuestion) {
+      return { success: false, error: 'Question not found' };
+    }
+    
+    // Get the roomId to revalidate the path
+    const roomId = existingQuestion.roomId.toString();
+    
+    // Update the question
+    const updatedQuestion = await Question.findByIdAndUpdate(
+      questionId,
+      {
+        content: formData.content,
+        options: formData.options,
+        correctAnswer: formData.correctAnswer,
+        difficulty: formData.difficulty,
+      },
+      { new: true, runValidators: true }
+    );
+    
+    revalidatePath(`/dashboard/rooms/${roomId}/questions`);
+    
+    return { success: true, data: updatedQuestion };
+  } catch (error: any) {
+    console.error('Update question error:', error);
+    return { 
+      success: false, 
+      error: error.message || 'Failed to update question' 
+    };
+  }
+}
+
+export async function deleteQuestion(questionId: string) {
+  try {
+    await connectToDatabase();
+    
+    // Find the question first to make sure it exists
+    const existingQuestion = await Question.findById(questionId);
+    if (!existingQuestion) {
+      return { success: false, error: 'Question not found' };
+    }
+    
+    // Get the roomId to revalidate the path
+    const roomId = existingQuestion.roomId.toString();
+    
+    // Delete the question
+    await Question.findByIdAndDelete(questionId);
+    
+    revalidatePath(`/dashboard/rooms/${roomId}/questions`);
+    
+    return { success: true };
+  } catch (error: any) {
+    console.error('Delete question error:', error);
+    return { 
+      success: false, 
+      error: error.message || 'Failed to delete question' 
     };
   }
 }

@@ -9,6 +9,7 @@ export interface RewardTier {
 export interface IGameRoom extends Document {
   name: string;
   code: string;
+  description?: string;
   createdBy: mongoose.Types.ObjectId;
   isActive: boolean;
   rewardTiers: RewardTier[];
@@ -44,6 +45,11 @@ const GameRoomSchema = new Schema<IGameRoom>(
       type: String,
       required: [true, 'Please provide a room code'],
       unique: true,
+    },
+    description: {
+      type: String,
+      required: false,
+      maxlength: [500, 'Description cannot be more than 500 characters'],
     },
     createdBy: {
       type: Schema.Types.ObjectId,
