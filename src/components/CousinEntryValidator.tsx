@@ -5,6 +5,7 @@ import { validateCousinEntry, activateCousinEntry } from '@/lib/actions';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { Card } from './ui/Card';
+import { useRouter } from 'next/navigation';
 
 interface EntryData {
   name?: string;
@@ -17,6 +18,7 @@ interface CousinEntryValidatorProps {
 }
 
 export function CousinEntryValidator({ roomId, onSuccess }: CousinEntryValidatorProps) {
+  const router = useRouter();
   const [entryCode, setEntryCode] = useState('');
   const [userName, setUserName] = useState('');
   const [isValidating, setIsValidating] = useState(false);
@@ -25,9 +27,15 @@ export function CousinEntryValidator({ roomId, onSuccess }: CousinEntryValidator
   const [entryData, setEntryData] = useState<EntryData | null>(null);
   const [isActivating, setIsActivating] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   async function handleValidateCode(e: React.FormEvent) {
     e.preventDefault();
+    if (!entryCode.trim()) {
+      setError('Please enter your entry code');
+      return;
+    }
+
     setIsValidating(true);
     setError(null);
     setEntryFound(false);
@@ -38,6 +46,7 @@ export function CousinEntryValidator({ roomId, onSuccess }: CousinEntryValidator
       
       if (result.success && result.data) {
         setEntryFound(true);
+        
         // Transform the API response to match our EntryData type
         const entryInfo: EntryData = {
           isActive: result.data.entry?.isActive || false,
@@ -50,6 +59,11 @@ export function CousinEntryValidator({ roomId, onSuccess }: CousinEntryValidator
         if (entryInfo.name) {
           setUserName(entryInfo.name);
         }
+        
+        // If user already exists, we can navigate directly to the game
+        if (result.data.existingUser) {
+          navigateToGame();
+        }
       } else {
         setError(result.error || 'Failed to validate entry code');
       }
@@ -58,6 +72,20 @@ export function CousinEntryValidator({ roomId, onSuccess }: CousinEntryValidator
       console.error(error);
     } finally {
       setIsValidating(false);
+    }
+  }
+
+  function navigateToGame() {
+    try {
+      setIsRedirecting(true);
+      // Construct the game URL
+      const gameUrl = `/game/${roomId}?code=${entryCode}`;
+      // Navigate to the game page
+      router.push(gameUrl);
+    } catch (error) {
+      console.error('Navigation error:', error);
+      setError('Failed to navigate to the game. Please try again.');
+      setIsRedirecting(false);
     }
   }
 
@@ -82,6 +110,11 @@ export function CousinEntryValidator({ roomId, onSuccess }: CousinEntryValidator
         if (onSuccess) {
           onSuccess(userName);
         }
+        
+        // Navigate to the game page after a short delay
+        setTimeout(() => {
+          navigateToGame();
+        }, 1500); // Small delay to show success message
       } else {
         setError(result.error || 'Failed to activate entry');
       }
@@ -103,12 +136,24 @@ export function CousinEntryValidator({ roomId, onSuccess }: CousinEntryValidator
             {successMessage}
           </div>
           <p className="mb-4">Welcome, {userName}! You are now ready to play.</p>
+          <p className="text-sm text-gray-500">
+            {isRedirecting ? 'Redirecting to game...' : 'Preparing game...'}
+          </p>
         </div>
       ) : entryFound && entryData ? (
         <>
           {entryData.isActive ? (
-            <div className="bg-yellow-100 text-yellow-800 p-4 rounded-md mb-4">
-              This entry code is already active. If this is you, you can continue playing.
+            <div>
+              <div className="bg-yellow-100 text-yellow-800 p-4 rounded-md mb-4">
+                This entry code is already active. If this is you, you can continue playing.
+              </div>
+              <Button 
+                onClick={navigateToGame}
+                className="w-full"
+                disabled={isRedirecting}
+              >
+                {isRedirecting ? 'Redirecting...' : 'Continue to Game'}
+              </Button>
             </div>
           ) : (
             <form onSubmit={handleActivateEntry}>
@@ -135,7 +180,7 @@ export function CousinEntryValidator({ roomId, onSuccess }: CousinEntryValidator
               <Button 
                 type="submit" 
                 className="w-full"
-                disabled={isActivating}
+                disabled={isActivating || isRedirecting}
               >
                 {isActivating ? 'Activating...' : 'Activate Entry'}
               </Button>
@@ -152,7 +197,7 @@ export function CousinEntryValidator({ roomId, onSuccess }: CousinEntryValidator
               id="entryCode"
               type="text"
               value={entryCode}
-              onChange={(e) => setEntryCode(e.target.value)}
+              onChange={(e) => setEntryCode(e.target.value.toUpperCase())}
               placeholder="Enter your code"
               required
             />

@@ -3,9 +3,20 @@ import { notFound } from 'next/navigation';
 import { CousinEntryValidator } from '@/components/CousinEntryValidator';
 import { getGameRoom } from '@/lib/actions';
 
-export default async function JoinGamePage({ params }: { params: { roomId: string } }) {
-  // Wait for params to be properly populated
-  const { roomId } = params;
+interface PageProps {
+  params: {
+    roomId: string;
+  };
+}
+
+export default async function JoinGamePage({ params }: PageProps) {
+  // Use Promise.resolve to properly await the params
+  const resolvedParams = await Promise.resolve(params);
+  const roomId = resolvedParams.roomId;
+  
+  if (!roomId) {
+    return notFound();
+  }
   
   // Get the game room details
   const roomResponse = await getGameRoom(roomId);
@@ -41,9 +52,6 @@ export default async function JoinGamePage({ params }: { params: { roomId: strin
       <div className="w-full max-w-md">
         <CousinEntryValidator 
           roomId={room._id.toString()} 
-          onSuccess={(name) => {
-            // This is a client component callback, so we'll handle navigation in the component
-          }}
         />
       </div>
       

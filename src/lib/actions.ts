@@ -580,4 +580,295 @@ export async function activateCousinEntry(roomId: string, code: string, userName
       error: error.message || 'Failed to activate entry' 
     };
   }
+}
+
+// Room Statistics actions
+export async function getRoomStatistics(roomId: string) {
+  try {
+    await connectToDatabase();
+    
+    // Convert string ID to ObjectId
+    const roomObjId = new mongoose.Types.ObjectId(roomId);
+    
+    // Get game room data
+    const gameRoom = await GameRoom.findById(roomObjId);
+    if (!gameRoom) {
+      return { success: false, error: 'Game room not found' };
+    }
+    
+    // Get all questions for this room
+    const questions = await Question.find({ roomId: roomObjId });
+    
+    // Get all cousin entries for this room
+    const entries = await CousinEntry.find({ roomId: roomObjId });
+    const activeEntries = entries.filter(entry => entry.hasEntered);
+    
+    // Get all spin tokens for this room
+    const spinTokens = await SpinToken.aggregate([
+      { $match: { roomId: roomObjId } },
+      { $group: { _id: null, totalTokens: { $sum: "$tokenCount" } } }
+    ]);
+    
+    // Get all THR spins for this room
+    const thrSpins = await ThrSpin.find({ roomId: roomObjId });
+    
+    // Calculate statistics
+    const totalTokensAwarded = spinTokens.length > 0 ? spinTokens[0].totalTokens : 0;
+    const totalTokensUsed = thrSpins.length;
+    const totalThrAwarded = thrSpins.reduce((sum, spin) => sum + spin.thrAmount, 0);
+    
+    // Question completion statistics by difficulty
+    const questionStats = {
+      bronze: { total: 0, solved: 0 },
+      silver: { total: 0, solved: 0 },
+      gold: { total: 0, solved: 0 }
+    };
+    
+    questions.forEach(q => {
+      questionStats[q.difficulty as keyof typeof questionStats].total += 1;
+      if (q.isSolved) questionStats[q.difficulty as keyof typeof questionStats].solved += 1;
+    });
+    
+    // Reward tier distribution
+    const rewardDistribution = gameRoom.rewardTiers.map((tier: { name: string, count: number, thrAmount: number }) => {
+      const tiersAwarded = thrSpins.filter(spin => spin.tierName === tier.name).length;
+      return {
+        name: tier.name,
+        count: tier.count,
+        awarded: tiersAwarded,
+        remaining: tier.count - tiersAwarded,
+        thrAmount: tier.thrAmount
+      };
+    });
+    
+    return { 
+      success: true, 
+      data: {
+        totalEntries: entries.length,
+        activeParticipants: activeEntries.length,
+        questionStats,
+        totalQuestions: questions.length,
+        solvedQuestions: questions.filter(q => q.isSolved).length,
+        totalTokensAwarded,
+        totalTokensUsed,
+        totalThrAwarded,
+        rewardDistribution
+      } 
+    };
+  } catch (error: any) {
+    console.error('Get room statistics error:', error);
+    return { 
+      success: false, 
+      error: error.message || 'Failed to get room statistics' 
+    };
+  }
+}
+
+// Get detailed question statistics with participant information
+export async function getQuestionStatistics(roomId: string) {
+  try {
+    await connectToDatabase();
+    
+    const roomObjId = new mongoose.Types.ObjectId(roomId);
+    
+    // Get all questions for this room with detailed solve information
+    const questions = await Question.find({ roomId: roomObjId })
+      .sort({ difficulty: 1, createdAt: 1 });
+    
+    // Get all users who participated in this room
+    const entryDetails = await CousinEntry.find({ 
+      roomId: roomObjId,
+      hasEntered: true
+    });
+    
+    // Map user IDs to names for easier referencing
+    const userMap: Record<string, string> = entryDetails.reduce((map: Record<string, string>, entry) => {
+      if (entry.userId) {
+        map[entry.userId.toString()] = entry.name;
+      }
+      return map;
+    }, {});
+    
+    // Build detailed question statistics
+    const questionStats = await Promise.all(questions.map(async (q) => {
+      const solvedByDetails = await Promise.all(q.solvedBy.map(async (userId: mongoose.Types.ObjectId) => {
+        const userName = userMap[userId.toString()] || 'Unknown';
+        
+        // Find when this user solved this question (the ThrSpin record)
+        const timeStamp = q.updatedAt;
+        
+        return {
+          userId: userId.toString(),
+          userName,
+          solvedAt: timeStamp
+        };
+      }));
+      
+      return {
+        id: q._id.toString(),
+        content: q.content,
+        difficulty: q.difficulty,
+        isSolved: q.isSolved,
+        solvedBy: solvedByDetails,
+        solvedAt: q.updatedAt
+      };
+    }));
+    
+    return { success: true, data: questionStats };
+  } catch (error: any) {
+    console.error('Get question statistics error:', error);
+    return { 
+      success: false, 
+      error: error.message || 'Failed to get question statistics' 
+    };
+  }
+}
+
+// Get participant performance in a room
+export async function getParticipantStats(roomId: string) {
+  try {
+    await connectToDatabase();
+    
+    const roomObjId = new mongoose.Types.ObjectId(roomId);
+    
+    // Get all participants
+    const participants = await CousinEntry.find({
+      roomId: roomObjId,
+      hasEntered: true
+    });
+    
+    // Build detailed stats for each participant
+    const participantStats = await Promise.all(participants.map(async (p) => {
+      // Skip participants without user IDs
+      if (!p.userId) {
+        return {
+          id: p._id.toString(),
+          name: p.name,
+          solvedQuestions: 0,
+          tokensEarned: 0,
+          tokensRemaining: 0,
+          spins: [],
+          totalEarnings: 0
+        };
+      }
+      
+      // Get questions solved by this participant
+      const solvedQuestions = await Question.find({
+        roomId: roomObjId,
+        solvedBy: p.userId
+      });
+      
+      // Get spin tokens for this participant
+      const spinTokenResult = await getSpinTokens(p.userId.toString(), roomId);
+      const tokensRemaining = spinTokenResult.success ? spinTokenResult.data.tokenCount : 0;
+      
+      // Get THR spins for this participant
+      const thrSpinsResult = await getThrSpins(p.userId.toString(), roomId);
+      const spins = thrSpinsResult.success && thrSpinsResult.data ? thrSpinsResult.data.spins : [];
+      const totalEarnings = thrSpinsResult.success && thrSpinsResult.data ? thrSpinsResult.data.totalEarnings : 0;
+      
+      // Calculate tokens earned based on questions solved
+      const tokensEarned = solvedQuestions.length;
+      
+      return {
+        id: p._id.toString(),
+        name: p.name,
+        solvedQuestions: solvedQuestions.length,
+        tokensEarned,
+        tokensRemaining,
+        spins,
+        totalEarnings
+      };
+    }));
+    
+    return { success: true, data: participantStats };
+  } catch (error: any) {
+    console.error('Get participant stats error:', error);
+    return { 
+      success: false, 
+      error: error.message || 'Failed to get participant statistics' 
+    };
+  }
+}
+
+// Get reward distribution statistics
+export async function getRewardDistribution(roomId: string) {
+  try {
+    await connectToDatabase();
+    
+    const roomObjId = new mongoose.Types.ObjectId(roomId);
+    
+    // Get game room details
+    const gameRoom = await GameRoom.findById(roomObjId);
+    if (!gameRoom) {
+      return { success: false, error: 'Game room not found' };
+    }
+    
+    // Get all THR spins for this room
+    const thrSpins = await ThrSpin.find({ roomId: roomObjId })
+      .populate('userId', 'name')
+      .sort({ createdAt: -1 });
+    
+    // Group spins by tier
+    const tierMap: Record<string, { name: string, spins: any[], count: number, total: number }> = {};
+    
+    thrSpins.forEach(spin => {
+      if (!tierMap[spin.tierName]) {
+        tierMap[spin.tierName] = {
+          name: spin.tierName,
+          spins: [],
+          count: 0,
+          total: 0
+        };
+      }
+      
+      tierMap[spin.tierName].spins.push({
+        id: spin._id.toString(),
+        userId: spin.userId.toString(),
+        userName: (spin.userId as any).name || 'Unknown',
+        thrAmount: spin.thrAmount,
+        createdAt: spin.createdAt
+      });
+      
+      tierMap[spin.tierName].count++;
+      tierMap[spin.tierName].total += spin.thrAmount;
+    });
+    
+    // Format the data with defined and awarded tiers
+    const rewardDistribution = gameRoom.rewardTiers.map((tier: { name: string, count: number, thrAmount: number }) => {
+      const tierData = tierMap[tier.name] || { name: tier.name, spins: [], count: 0, total: 0 };
+      
+      return {
+        name: tier.name,
+        thrAmount: tier.thrAmount,
+        defined: tier.count,
+        awarded: tierData.count,
+        remaining: tier.count - tierData.count,
+        spins: tierData.spins,
+        totalAmount: tierData.total
+      };
+    });
+    
+    // Calculate overall statistics
+    const totalDefined = gameRoom.rewardTiers.reduce((sum: number, tier: { name: string, count: number, thrAmount: number }) => sum + tier.count, 0);
+    const totalAwarded = thrSpins.length;
+    const totalThrAmount = thrSpins.reduce((sum, spin) => sum + spin.thrAmount, 0);
+    
+    return { 
+      success: true, 
+      data: {
+        tiers: rewardDistribution,
+        totalDefined,
+        totalAwarded,
+        totalRemaining: totalDefined - totalAwarded,
+        totalThrAmount
+      } 
+    };
+  } catch (error: any) {
+    console.error('Get reward distribution error:', error);
+    return { 
+      success: false, 
+      error: error.message || 'Failed to get reward distribution' 
+    };
+  }
 } 
