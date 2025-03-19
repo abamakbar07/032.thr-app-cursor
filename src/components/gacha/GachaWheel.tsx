@@ -1,161 +1,134 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { cn } from '@/utils/cn';
-import { Button } from '../ui/Button';
+'use client';
 
-interface WheelSection {
-  id: string;
-  label: string;
-  color: string;
-  probability: number;
-  value: string;
-}
+import React, { useState, useRef, useEffect } from 'react';
+import { Button } from '@/components/ui/Button';
 
 interface GachaWheelProps {
-  sections: WheelSection[];
-  onSpinEnd?: (section: WheelSection) => void;
-  className?: string;
-  disabled?: boolean;
+  rewards: {
+    tier: string;
+    name: string;
+    color: string;
+  }[];
+  onSpin: () => Promise<{ tier: string; name: string }>;
+  tokenCount: number;
 }
 
-export const GachaWheel: React.FC<GachaWheelProps> = ({
-  sections,
-  onSpinEnd,
-  className,
-  disabled = false,
-}) => {
-  const [rotation, setRotation] = useState(0);
+export const GachaWheel: React.FC<GachaWheelProps> = ({ rewards, onSpin, tokenCount }) => {
   const [isSpinning, setIsSpinning] = useState(false);
-  const [winner, setWinner] = useState<WheelSection | null>(null);
+  const [result, setResult] = useState<{ tier: string; name: string } | null>(null);
+  const [rotation, setRotation] = useState(0);
+  const [showResult, setShowResult] = useState(false);
   const wheelRef = useRef<HTMLDivElement>(null);
-  const totalProbability = sections.reduce((sum, section) => sum + section.probability, 0);
-  
-  // Normalize probabilities
-  const normalizedSections = sections.map(section => ({
-    ...section,
-    probability: section.probability / totalProbability,
-  }));
 
-  // Calculate section angles
-  const sectionAngles = normalizedSections.map((section, index) => {
-    const startAngle = normalizedSections
-      .slice(0, index)
-      .reduce((sum, s) => sum + (s.probability * 360), 0);
-    const endAngle = startAngle + (section.probability * 360);
-    return {
-      ...section,
-      startAngle,
-      endAngle,
-    };
-  });
-
-  const spinWheel = () => {
-    if (isSpinning || disabled) return;
+  const spinWheel = async () => {
+    if (isSpinning || tokenCount <= 0) return;
     
     setIsSpinning(true);
-    setWinner(null);
-
-    // Weighted random selection based on probabilities
-    const random = Math.random();
-    let cumulativeProbability = 0;
-    let selectedSection: WheelSection | null = null;
-
-    for (const section of normalizedSections) {
-      cumulativeProbability += section.probability;
-      if (random <= cumulativeProbability) {
-        selectedSection = section;
-        break;
-      }
-    }
-
-    if (!selectedSection) {
-      selectedSection = normalizedSections[normalizedSections.length - 1];
-    }
-
-    // Find the section's position on the wheel
-    const sectionIndex = normalizedSections.findIndex(s => s.id === selectedSection?.id);
-    const sectionData = sectionAngles[sectionIndex];
+    setShowResult(false);
+    setResult(null);
     
-    // Calculate middle of the section
-    const middleAngle = (sectionData.startAngle + sectionData.endAngle) / 2;
+    // Start animation
+    const spinDuration = 5000; // 5 seconds
+    const spinRotation = 1800 + Math.random() * 360; // Multiple full rotations plus random
     
-    // Calculate rotation to stop at the pointer (at top of wheel, which is 0 degrees)
-    // We want the selected section to stop at the top, so we rotate to 360 - middleAngle
-    // Add a number of full rotations (e.g., 5 * 360) to make the spin look good
-    const spinDegrees = 360 - middleAngle + (5 * 360);
+    // Animate the wheel
+    setRotation(rotation + spinRotation);
     
-    // Apply the rotation
-    setRotation(prevRotation => prevRotation + spinDegrees);
+    // Get the actual result from the server
+    const spinResult = await onSpin();
     
-    // Set the winner after the spin animation completes
+    // Show result after spin animation completes
     setTimeout(() => {
+      setResult(spinResult);
+      setShowResult(true);
       setIsSpinning(false);
-      setWinner(selectedSection);
-      if (onSpinEnd && selectedSection) {
-        onSpinEnd(selectedSection);
-      }
-    }, 5000); // This should match the CSS transition duration
+    }, spinDuration);
   };
+  
+  // Calculate wheel segments
+  const segmentAngle = 360 / rewards.length;
 
   return (
-    <div className={cn('flex flex-col items-center gap-4', className)}>
-      <div className="relative w-72 h-72 md:w-96 md:h-96">
+    <div className="flex flex-col items-center justify-center p-4">
+      <div className="mb-6 text-center">
+        <h3 className="text-xl font-bold mb-2">Gacha Wheel</h3>
+        <p className="text-gray-600">You have {tokenCount} spin tokens</p>
+      </div>
+      
+      <div className="relative w-72 h-72 mb-8">
         {/* Wheel */}
         <div 
           ref={wheelRef}
-          className="relative w-full h-full rounded-full overflow-hidden transition-transform duration-5000 ease-out"
-          style={{ transform: `rotate(${rotation}deg)` }}
+          className="absolute inset-0 rounded-full overflow-hidden transform transition-transform duration-5000 ease-out"
+          style={{ 
+            transform: `rotate(${rotation}deg)`,
+            transitionDuration: isSpinning ? '5s' : '0s',
+          }}
         >
-          {sectionAngles.map((section, index) => {
-            const angle = section.probability * 360;
-            const skewY = 90 - angle; // Calculate skew for the section
-            const rotate = section.startAngle; // Rotation based on section position
-            
+          {rewards.map((reward, index) => {
+            const startAngle = index * segmentAngle;
             return (
-              <div
-                key={section.id}
-                className="absolute top-0 left-0 right-0 bottom-0 origin-bottom-left"
-                style={{
-                  transform: `rotate(${rotate}deg) skewY(${skewY}deg)`,
-                  backgroundColor: section.color,
-                  width: '50%',
-                  height: '50%',
-                  transformOrigin: 'bottom right',
+              <div 
+                key={index}
+                className="absolute top-0 left-0 w-full h-full origin-center"
+                style={{ 
+                  transform: `rotate(${startAngle}deg)`,
+                  clipPath: `polygon(50% 50%, 50% 0%, ${50 + 50 * Math.cos((segmentAngle * Math.PI) / 180)}% ${50 - 50 * Math.sin((segmentAngle * Math.PI) / 180)}%, 50% 50%)`,
+                  backgroundColor: reward.color
                 }}
               >
                 <div 
-                  className="absolute origin-top-right bottom-0 right-0 transform -translate-y-12 translate-x-6 rotate-45 text-white font-bold"
-                  style={{ transform: `rotate(${90 - angle/2}deg)` }}
+                  className="absolute top-[20%] left-[50%] transform -translate-x-1/2 text-white font-bold text-xs whitespace-nowrap"
+                  style={{ transform: `translateX(-50%) rotate(${segmentAngle / 2}deg)` }}
                 >
-                  {section.label}
+                  {reward.name}
                 </div>
               </div>
             );
           })}
         </div>
         
-        {/* Pointer/Indicator */}
-        <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-0 h-0" style={{ zIndex: 10 }}>
-          <div className="w-6 h-6 bg-red-600 rounded-full"></div>
-          <div className="absolute top-6 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-8 border-r-8 border-t-12 border-transparent border-t-red-600"></div>
-        </div>
+        {/* Center spinner */}
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white border-4 border-gray-800 z-10"></div>
+        
+        {/* Pointer */}
+        <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-4 h-8 bg-red-600 z-20 triangle-down"></div>
       </div>
       
-      <Button 
-        onClick={spinWheel} 
-        disabled={isSpinning || disabled}
-        variant="primary"
-        size="lg"
-        isLoading={isSpinning}
+      <Button
+        onClick={spinWheel}
+        disabled={isSpinning || tokenCount <= 0}
+        className="px-8 py-3 text-lg disabled:opacity-50"
       >
         {isSpinning ? 'Spinning...' : 'Spin!'}
       </Button>
       
-      {winner && (
-        <div className="mt-4 text-center">
-          <p className="text-lg font-semibold">You won:</p>
-          <p className="text-2xl font-bold text-blue-600">{winner.label}</p>
+      {/* Result modal */}
+      {showResult && result && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
+          <div className="bg-white rounded-lg p-6 max-w-sm w-full text-center">
+            <h3 className="text-2xl font-bold mb-2">Congratulations!</h3>
+            <p className="text-xl mb-4">
+              You won a <span className="font-bold text-blue-600">{result.tier}</span> reward:
+            </p>
+            <div className="text-3xl font-bold mb-6 text-yellow-600">
+              {result.name}
+            </div>
+            <Button
+              onClick={() => setShowResult(false)}
+              className="px-6 py-2"
+            >
+              Claim Reward
+            </Button>
+          </div>
         </div>
       )}
+      
+      <style jsx>{`
+        .triangle-down {
+          clip-path: polygon(50% 100%, 0 0, 100% 0);
+        }
+      `}</style>
     </div>
   );
 }; 
