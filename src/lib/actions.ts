@@ -109,11 +109,23 @@ export async function getGameRooms(userId: string) {
   }
 }
 
-export async function getGameRoom(roomId: string) {
+export async function getGameRoom(roomIdOrCode: string) {
   try {
     await connectToDatabase();
     
-    const gameRoom = await GameRoom.findById(roomId);
+    let gameRoom;
+    
+    // Check if the input is a valid MongoDB ObjectId
+    const isValidObjectId = mongoose.Types.ObjectId.isValid(roomIdOrCode);
+    
+    if (isValidObjectId) {
+      // If it's a valid ObjectId, search by _id
+      gameRoom = await GameRoom.findById(roomIdOrCode);
+    } else {
+      // If it's not a valid ObjectId, assume it's a room code
+      gameRoom = await GameRoom.findOne({ code: roomIdOrCode });
+    }
+    
     if (!gameRoom) {
       return { success: false, error: 'Game room not found' };
     }

@@ -1,10 +1,11 @@
 import React from 'react';
-import { redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { CousinEntryValidator } from '@/components/CousinEntryValidator';
 import { getGameRoom } from '@/lib/actions';
 
 export default async function JoinGamePage({ params }: { params: { roomId: string } }) {
-  const roomId = params.roomId;
+  // Wait for params to be properly populated
+  const { roomId } = params;
   
   // Get the game room details
   const roomResponse = await getGameRoom(roomId);
@@ -28,7 +29,7 @@ export default async function JoinGamePage({ params }: { params: { roomId: strin
     <div className="flex flex-col items-center justify-center p-4 bg-gray-50">
       <div className="w-full max-w-lg text-center mb-8">
         <h1 className="text-3xl font-bold mb-2">{room.name}</h1>
-        <p className="text-gray-600 mb-6">{room.description}</p>
+        <p className="text-gray-600 mb-6">{room.description || 'Join this game room to participate'}</p>
         
         <div className="flex justify-center items-center mb-4">
           <div className="bg-blue-100 text-blue-800 px-4 py-2 rounded-full inline-flex items-center">
@@ -39,7 +40,7 @@ export default async function JoinGamePage({ params }: { params: { roomId: strin
       
       <div className="w-full max-w-md">
         <CousinEntryValidator 
-          roomId={roomId} 
+          roomId={room._id.toString()} 
           onSuccess={(name) => {
             // This is a client component callback, so we'll handle navigation in the component
           }}
