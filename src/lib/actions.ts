@@ -39,7 +39,12 @@ export async function createAdmin(name: string, email: string, password: string)
       role: 'admin',
     });
     
-    return { success: true, data: { id: user._id } };
+    return { 
+      success: true, 
+      data: { 
+        id: user._id.toString() // Convert ObjectId to string
+      } 
+    };
   } catch (error: any) {
     console.error('Create admin error:', error);
     return { 
@@ -476,7 +481,10 @@ export async function validateCousinEntry(roomId: string, code: string) {
           success: true, 
           data: { 
             entry,
-            existingUser: { id: user._id, name: user.name }
+            existingUser: { 
+              id: user._id.toString(), 
+              name: user.name 
+            }
           }
         };
       }
@@ -511,7 +519,12 @@ export async function activateCousinEntry(roomId: string, code: string, userName
       // Entry already activated, return the existing user
       const user = await User.findById(entry.userId);
       if (user) {
-        return { success: true, data: { userId: user._id } };
+        return { 
+          success: true, 
+          data: { 
+            userId: user._id.toString() 
+          } 
+        };
       }
     }
     
@@ -530,7 +543,12 @@ export async function activateCousinEntry(roomId: string, code: string, userName
     entry.userId = user._id;
     await entry.save();
     
-    return { success: true, data: { userId: user._id } };
+    return { 
+      success: true, 
+      data: { 
+        userId: user._id.toString() 
+      } 
+    };
   } catch (error: any) {
     console.error('Activate cousin entry error:', error);
     return { 

@@ -16,6 +16,9 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/signin') || 
     pathname.startsWith('/signup');
 
+  // Check if this is an entry route
+  const isEntryRoute = pathname.startsWith('/entry');
+
   // Get the authentication token
   const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
   
@@ -36,6 +39,14 @@ export async function middleware(request: NextRequest) {
     // Redirect to dashboard if not an admin
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
+
+  // Entry route requires roomId parameter
+  if (isEntryRoute) {
+    const roomId = request.nextUrl.searchParams.get('roomId');
+    if (!roomId) {
+      return NextResponse.redirect(new URL('/', request.url));
+    }
+  }
   
   return NextResponse.next();
 }
@@ -49,5 +60,7 @@ export const config = {
     // Auth routes
     '/signin',
     '/signup',
+    // Entry route
+    '/entry',
   ],
 }; 
