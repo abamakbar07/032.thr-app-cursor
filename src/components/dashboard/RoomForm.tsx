@@ -22,17 +22,16 @@ export default function RoomForm({ userId, roomData, isEdit = false }: RoomFormP
   
   const [rewardTiers, setRewardTiers] = useState<RewardTier[]>(
     roomData?.rewardTiers || [
-      { name: 'Bronze', probability: 70, thrAmount: 50000 },
-      { name: 'Silver', probability: 25, thrAmount: 100000 },
-      { name: 'Gold', probability: 5, thrAmount: 200000 },
+      { name: 'Bronze', count: 70, thrAmount: 50000 },
+      { name: 'Silver', count: 25, thrAmount: 100000 },
+      { name: 'Gold', count: 5, thrAmount: 200000 },
     ]
   );
   
-  const totalProbability = rewardTiers.reduce((sum, tier) => sum + tier.probability, 0);
-  const isValidProbability = totalProbability <= 100;
+  const totalCount = rewardTiers.reduce((sum, tier) => sum + tier.count, 0);
   
   const addRewardTier = () => {
-    setRewardTiers([...rewardTiers, { name: '', probability: 0, thrAmount: 0 }]);
+    setRewardTiers([...rewardTiers, { name: '', count: 0, thrAmount: 0 }]);
   };
   
   const removeRewardTier = (index: number) => {
@@ -42,7 +41,7 @@ export default function RoomForm({ userId, roomData, isEdit = false }: RoomFormP
   const updateTier = (index: number, field: keyof RewardTier, value: string | number) => {
     const updatedTiers = [...rewardTiers];
     
-    if (field === 'probability' || field === 'thrAmount') {
+    if (field === 'count' || field === 'thrAmount') {
       updatedTiers[index][field] = Number(value);
     } else {
       updatedTiers[index][field] = value as string;
@@ -59,11 +58,6 @@ export default function RoomForm({ userId, roomData, isEdit = false }: RoomFormP
       return;
     }
     
-    if (!isValidProbability) {
-      setError('Total probability cannot exceed 100%');
-      return;
-    }
-    
     // Validate each tier
     for (const tier of rewardTiers) {
       if (!tier.name.trim()) {
@@ -71,8 +65,8 @@ export default function RoomForm({ userId, roomData, isEdit = false }: RoomFormP
         return;
       }
       
-      if (tier.probability < 0 || tier.probability > 100) {
-        setError('Probabilities must be between 0 and 100');
+      if (tier.count < 0) {
+        setError('Count cannot be negative');
         return;
       }
       
@@ -80,6 +74,11 @@ export default function RoomForm({ userId, roomData, isEdit = false }: RoomFormP
         setError('THR amounts cannot be negative');
         return;
       }
+    }
+    
+    if (totalCount <= 0) {
+      setError('Total count must be greater than 0');
+      return;
     }
     
     setIsSubmitting(true);
@@ -186,15 +185,14 @@ export default function RoomForm({ userId, roomData, isEdit = false }: RoomFormP
                 
                 <div>
                   <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">
-                    Probability (%)
+                    Count
                   </label>
                   <Input
                     type="number"
                     min="0"
-                    max="100"
-                    step="0.1"
-                    value={tier.probability}
-                    onChange={(e) => updateTier(index, 'probability', e.target.value)}
+                    step="1"
+                    value={tier.count}
+                    onChange={(e) => updateTier(index, 'count', e.target.value)}
                     required
                   />
                 </div>
@@ -204,11 +202,14 @@ export default function RoomForm({ userId, roomData, isEdit = false }: RoomFormP
                     THR Amount (IDR)
                   </label>
                   <Input
-                    type="number"
-                    min="0"
-                    step="10000"
-                    value={tier.thrAmount}
-                    onChange={(e) => updateTier(index, 'thrAmount', e.target.value)}
+                    type="text"
+                    value={tier.thrAmount.toString()}
+                    onChange={(e) => {
+                      // Remove non-numeric characters and convert to number
+                      const value = e.target.value.replace(/[^\d]/g, '');
+                      updateTier(index, 'thrAmount', value ? parseInt(value, 10) : 0);
+                    }}
+                    placeholder="50000"
                     required
                   />
                 </div>
@@ -217,15 +218,15 @@ export default function RoomForm({ userId, roomData, isEdit = false }: RoomFormP
           ))}
         </div>
         
-        <div className={`mt-3 p-3 rounded-md ${isValidProbability ? 'bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'bg-red-50 text-red-700 dark:bg-red-900 dark:text-red-200'}`}>
-          Total probability: {totalProbability}% (must not exceed 100%)
+        <div className="mt-3 p-3 rounded-md bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-200">
+          Total count: {totalCount}
         </div>
       </div>
       
       <div className="pt-3 border-t border-slate-200 dark:border-slate-700">
         <Button
           type="submit"
-          disabled={isSubmitting || !isValidProbability}
+          disabled={isSubmitting || totalCount <= 0}
           className="w-full"
         >
           {isSubmitting ? 'Saving...' : isEdit ? 'Update Game Room' : 'Create Game Room'}

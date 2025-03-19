@@ -32,15 +32,14 @@ export async function generateQRCode(data: string): Promise<string> {
 }
 
 /**
- * Validate that reward tier probabilities do not exceed 100%
+ * Validate that reward tiers have at least one item
  */
 export function validateRewardTiers(tiers: RewardTier[]): boolean {
-  const totalProbability = tiers.reduce((sum, tier) => sum + tier.probability, 0);
-  return totalProbability <= 100;
+  return tiers.length > 0 && tiers.some(tier => tier.count > 0);
 }
 
 /**
- * Perform a weighted random selection from reward tiers
+ * Perform a weighted random selection from reward tiers based on counts
  */
 export function selectRandomRewardTier(tiers: RewardTier[]): RewardTier | null {
   // Validate tiers
@@ -48,23 +47,27 @@ export function selectRandomRewardTier(tiers: RewardTier[]): RewardTier | null {
     return null;
   }
 
-  // Get total probability (should not exceed 100)
-  const totalProbability = tiers.reduce((sum, tier) => sum + tier.probability, 0);
+  // Get total count
+  const totalCount = tiers.reduce((sum, tier) => sum + tier.count, 0);
   
-  // Generate a random number between 0 and total probability
-  const randomNum = Math.random() * totalProbability;
+  if (totalCount <= 0) {
+    return null;
+  }
   
-  // Find the selected tier based on probability ranges
-  let accumulatedProbability = 0;
+  // Generate a random number between 0 and total count
+  const randomNum = Math.floor(Math.random() * totalCount);
+  
+  // Find the selected tier based on count ranges
+  let accumulatedCount = 0;
   
   for (const tier of tiers) {
-    accumulatedProbability += tier.probability;
-    if (randomNum <= accumulatedProbability) {
+    accumulatedCount += tier.count;
+    if (randomNum < accumulatedCount) {
       return tier;
     }
   }
   
-  // Fallback to the last tier (should not happen if probabilities sum to 100)
+  // Fallback to the last tier (should not happen if counts are positive)
   return tiers[tiers.length - 1];
 }
 

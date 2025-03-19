@@ -180,11 +180,11 @@ export default async function RewardsPage() {
                         <div className="w-2/3 bg-slate-200 dark:bg-slate-700 rounded-full h-2">
                           <div
                             className="bg-blue-600 h-2 rounded-full"
-                            style={{ width: `${tier.probability}%` }}
+                            style={{ width: `${tier.count}%` }}
                           ></div>
                         </div>
                         <span className="text-sm text-slate-500 dark:text-slate-400">
-                          {tier.probability}% chance
+                          {tier.count}% chance
                         </span>
                       </div>
                     </div>

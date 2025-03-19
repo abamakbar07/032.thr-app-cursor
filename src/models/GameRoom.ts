@@ -2,7 +2,7 @@ import mongoose, { Schema, Document, models, model } from 'mongoose';
 
 export interface RewardTier {
   name: string;
-  probability: number;
+  count: number;
   thrAmount: number;
 }
 
@@ -21,11 +21,10 @@ const RewardTierSchema = new Schema({
     type: String,
     required: [true, 'Please provide a tier name'],
   },
-  probability: {
+  count: {
     type: Number,
-    required: [true, 'Please provide a probability'],
-    min: [0, 'Probability cannot be less than 0'],
-    max: [100, 'Probability cannot be more than 100'],
+    required: [true, 'Please provide a count'],
+    min: [0, 'Count cannot be less than 0'],
   },
   thrAmount: {
     type: Number,
@@ -59,11 +58,9 @@ const GameRoomSchema = new Schema<IGameRoom>(
       type: [RewardTierSchema],
       validate: {
         validator: function(tiers: RewardTier[]) {
-          // Ensure total probability doesn't exceed 100%
-          const totalProbability = tiers.reduce((sum, tier) => sum + tier.probability, 0);
-          return totalProbability <= 100;
+          return tiers.length > 0;
         },
-        message: 'Total probability cannot exceed 100%',
+        message: 'At least one reward tier is required',
       },
     },
   },
