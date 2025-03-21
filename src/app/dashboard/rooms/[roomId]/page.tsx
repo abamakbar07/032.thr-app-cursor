@@ -101,23 +101,25 @@ export default function RoomDetailPage() {
           setError(statsResult.error || 'Failed to fetch room statistics');
           return;
         }
-        setRoomStats(statsResult.data);
+        if (statsResult.data) {
+          setRoomStats(statsResult.data);
+        }
         
         // Fetch question statistics
         const questionResult = await getQuestionStatistics(roomId);
-        if (questionResult.success) {
+        if (questionResult.success && questionResult.data) {
           setQuestionStats(questionResult.data);
         }
         
         // Fetch participant statistics
         const participantResult = await getParticipantStats(roomId);
-        if (participantResult.success) {
+        if (participantResult.success && participantResult.data) {
           setParticipantStats(participantResult.data);
         }
         
         // Fetch reward distribution
         const rewardResult = await getRewardDistribution(roomId);
-        if (rewardResult.success) {
+        if (rewardResult.success && rewardResult.data) {
           setRewardDistribution(rewardResult.data);
         }
       } catch (err: any) {
