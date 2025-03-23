@@ -146,13 +146,20 @@ export default function GameRoomPage() {
       const result = await getActiveQuestions(roomId, userId);
       
       if (result.success && result.data) {
-        setQuestions(result.data);
+        // Flatten the grouped questions for the main game room display
+        const flattenedQuestions = [
+          ...result.data.bronze,
+          ...result.data.silver,
+          ...result.data.gold
+        ];
+        
+        setQuestions(flattenedQuestions);
         
         // Initialize selected answers
         const answers: Record<string, number | null> = {};
         const answered: Record<string, boolean> = {};
         
-        result.data.forEach(q => {
+        flattenedQuestions.forEach(q => {
           answers[q.id] = null;
           answered[q.id] = q.isSolved;
         });
@@ -274,216 +281,300 @@ export default function GameRoomPage() {
     }
   };
   
-  if (loading && step === 'validation') {
-    return <div className="p-8 text-center">Validating your entry...</div>;
-  }
-  
-  if (error) {
+  // Render the questions UI
+  const renderQuestionsUI = () => {
     return (
-      <div className="p-8 flex flex-col items-center justify-center">
-        <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-4">{error}</div>
-        <Link href="/game/join" className="text-blue-500 hover:underline">
-          Return to Join Page
-        </Link>
+      <div className="w-full max-w-4xl mx-auto">
+        <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-t-xl p-4 mb-4 shadow-lg">
+          <h1 className="text-2xl font-bold text-center text-white">Family Gacha THR</h1>
+          <p className="text-center text-white opacity-90">Answer questions to earn tokens for prizes!</p>
+        </div>
+        
+        <div className="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4 px-4">
+          <div className="flex items-center">
+            <div className="w-12 h-12 rounded-full bg-yellow-400 flex items-center justify-center mr-3">
+              <span className="text-xl font-bold">🎮</span>
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-blue-900">Welcome, {userName}!</h2>
+              <p className="text-sm text-blue-700">Have fun playing!</p>
+            </div>
+          </div>
+          
+          <div className="flex space-x-3">
+            <div className="bg-white rounded-full px-4 py-2 shadow-md border border-blue-100 flex items-center">
+              <span className="mr-2">🎖️</span>
+              <span className="font-medium">{spinTokens} Tokens</span>
+            </div>
+            
+            <button
+              onClick={() => setStep('gacha')}
+              className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white rounded-full px-4 py-2 shadow-md transition-colors duration-200 flex items-center"
+            >
+              <span className="mr-2">🎡</span>
+              <span>Spin Wheel</span>
+            </button>
+          </div>
+        </div>
+        
+        {error && (
+          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded shadow mx-4">
+            <p className="font-medium">Oops!</p>
+            <p>{error}</p>
+          </div>
+        )}
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+          {questions.map((question) => (
+            <div 
+              key={question.id} 
+              className={`bg-white rounded-xl shadow-md overflow-hidden border-t-4 transition-transform hover:scale-102 ${
+                answeredQuestions[question.id] 
+                  ? 'border-green-500' 
+                  : question.difficulty === 'bronze' 
+                    ? 'border-amber-500' 
+                    : question.difficulty === 'silver' 
+                      ? 'border-gray-400'
+                      : 'border-yellow-400'
+              }`}
+            >
+              <div className="p-4">
+                <div className="flex justify-between mb-3">
+                  <span 
+                    className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+                      question.difficulty === 'bronze' 
+                        ? 'bg-amber-100 text-amber-800' 
+                        : question.difficulty === 'silver' 
+                          ? 'bg-gray-100 text-gray-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                    }`}
+                  >
+                    {question.difficulty.toUpperCase()}
+                  </span>
+                  
+                  {answeredQuestions[question.id] && (
+                    <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Answered
+                    </span>
+                  )}
+                </div>
+                
+                <h3 className="font-bold text-blue-900 mb-3 line-clamp-2">{question.content}</h3>
+                
+                {!answeredQuestions[question.id] && (
+                  <div className="space-y-2 mt-4">
+                    {question.options.map((option, index) => (
+                      <button
+                        key={index}
+                        className={`w-full text-left p-2 rounded-lg transition-colors ${
+                          selectedAnswers[question.id] === index
+                            ? 'bg-blue-100 border border-blue-300'
+                            : 'bg-gray-50 border border-gray-200 hover:bg-blue-50'
+                        }`}
+                        onClick={() => handleSelectAnswer(question.id, index)}
+                      >
+                        <span className="inline-block w-6 h-6 rounded-full bg-blue-500 text-white text-center text-sm mr-2">
+                          {String.fromCharCode(65 + index)}
+                        </span>
+                        {option}
+                      </button>
+                    ))}
+                    
+                    <button
+                      onClick={() => submitAnswer(question.id)}
+                      disabled={selectedAnswers[question.id] === null || loading}
+                      className="w-full mt-3 py-2 bg-gradient-to-r from-blue-500 to-blue-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors hover:from-blue-600 hover:to-blue-800"
+                    >
+                      {loading ? 'Submitting...' : 'Submit Answer'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        {questions.length === 0 && (
+          <div className="text-center p-8 bg-white rounded-xl shadow-md m-4">
+            <div className="text-6xl mb-4">🎉</div>
+            <h3 className="text-xl font-bold text-blue-900 mb-2">All Questions Completed!</h3>
+            <p className="text-gray-600 mb-6">You've answered all available questions.</p>
+            <button
+              onClick={() => setStep('gacha')}
+              className="px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-full hover:from-pink-600 hover:to-purple-700 transition-colors shadow-md"
+            >
+              Go to Gacha Wheel
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Main render logic
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-blue-50 to-purple-50 p-4">
+        <div className="bg-white p-8 rounded-xl shadow-lg text-center w-full max-w-md">
+          <div className="animate-pulse flex flex-col items-center">
+            <div className="rounded-full bg-blue-200 h-16 w-16 mb-4 flex items-center justify-center">
+              <svg className="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+            <h3 className="text-xl font-bold text-blue-900 mb-2">Loading...</h3>
+            <p className="text-gray-600">Please wait while we prepare your game.</p>
+          </div>
+        </div>
       </div>
     );
   }
-  
-  return (
-    <div className="max-w-4xl mx-auto p-4">
-      {showConfetti && <Confetti />}
-      
-      {step === 'name' && (
-        <div className="bg-white p-6 rounded-lg shadow-lg">
-          <h1 className="text-2xl font-bold mb-6 text-center">Welcome to the Family THR Trivia!</h1>
-          <p className="mb-4 text-center">Please enter your name to participate:</p>
-          
-          <div className="mb-4">
-            <input
-              type="text"
-              value={userName}
-              onChange={(e) => setUserName(e.target.value)}
-              placeholder="Your Name"
-              className="w-full p-3 border rounded"
-            />
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-blue-50 to-purple-50 p-4">
+        <div className="bg-white p-8 rounded-xl shadow-lg text-center w-full max-w-md">
+          <div className="rounded-full bg-red-100 h-16 w-16 mx-auto mb-4 flex items-center justify-center">
+            <span className="text-2xl">❌</span>
           </div>
-          
+          <h3 className="text-xl font-bold text-red-900 mb-2">Error</h3>
+          <p className="text-gray-700 mb-6">{error}</p>
           <button
-            onClick={activateEntry}
-            disabled={loading}
-            className="w-full bg-blue-500 text-white py-3 rounded font-medium hover:bg-blue-600 disabled:bg-gray-300"
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
-            {loading ? 'Submitting...' : 'Join Game'}
+            Try Again
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Render the appropriate UI based on current step
+  return (
+    <div className="min-h-screen bg-gradient-to-r from-blue-50 to-purple-50 p-4">
+      {step === 'validation' && (
+        <div className="flex items-center justify-center h-full">
+          <div className="bg-white p-8 rounded-xl shadow-lg text-center w-full max-w-md">
+            <div className="animate-pulse flex flex-col items-center">
+              <div className="rounded-full bg-blue-200 h-16 w-16 mb-4 flex items-center justify-center">
+                <svg className="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-blue-900 mb-2">Validating</h3>
+              <p className="text-gray-600">Please wait while we validate your entry code.</p>
+            </div>
+          </div>
         </div>
       )}
       
-      {(step === 'questions' || step === 'gacha') && (
-        <div>
-          <div className="bg-blue-50 p-4 rounded-lg shadow mb-6">
-            <div className="flex justify-between items-center">
-              <h1 className="text-xl font-bold">Family THR Trivia</h1>
-              <div className="flex items-center space-x-2">
-                <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-sm">
-                  <span className="font-bold">{spinTokens}</span> Spin Tokens
-                </span>
-                <button
-                  onClick={() => setStep(step === 'questions' ? 'gacha' : 'questions')}
-                  className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600"
-                >
-                  {step === 'questions' ? 'Go to Gacha' : 'Answer Questions'}
-                </button>
-              </div>
+      {step === 'name' && (
+        <div className="flex items-center justify-center h-full">
+          <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+            <h3 className="text-2xl font-bold text-center text-blue-900 mb-6">Welcome to Family Gacha!</h3>
+            <div className="mb-6">
+              <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="userName">
+                What's your name?
+              </label>
+              <input
+                id="userName"
+                type="text"
+                value={userName}
+                onChange={(e) => setUserName(e.target.value)}
+                className="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Enter your name"
+              />
             </div>
-            <p className="text-sm mt-2">Welcome, {userName}!</p>
+            <button
+              onClick={activateEntry}
+              disabled={loading || !userName.trim()}
+              className="w-full py-3 px-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-bold rounded-lg hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            >
+              {loading ? 'Processing...' : 'Let\'s Start!'}
+            </button>
           </div>
+        </div>
+      )}
+      
+      {step === 'questions' && renderQuestionsUI()}
+      
+      {step === 'gacha' && (
+        <div className="max-w-4xl mx-auto p-4">
+          {showConfetti && <Confetti />}
           
-          {step === 'questions' && (
-            <div className="space-y-6">
-              <h2 className="text-xl font-semibold mb-4">Answer questions to earn Spin Tokens</h2>
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h2 className="text-xl font-semibold mb-4">Gacha Wheel - Spin for THR!</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-500">Spin Tokens</p>
+                <p className="text-3xl font-bold">{spinTokens}</p>
+              </div>
               
-              {questions.length === 0 ? (
-                <div className="bg-yellow-50 p-4 rounded-lg shadow">
-                  <p className="text-center">No questions available at the moment.</p>
-                </div>
-              ) : (
-                questions.map((question) => (
-                  <div 
-                    key={question.id} 
-                    className={`bg-white p-5 rounded-lg shadow-sm border-l-4 ${
-                      answeredQuestions[question.id] 
-                        ? 'border-green-500 opacity-60' 
-                        : question.difficulty === 'bronze' 
-                          ? 'border-yellow-400' 
-                          : question.difficulty === 'silver' 
-                            ? 'border-gray-400' 
-                            : 'border-yellow-600'
-                    }`}
-                  >
-                    <div className="flex justify-between items-start mb-3">
-                      <h3 className="text-lg font-medium pr-8">{question.content}</h3>
-                      <span className={`px-2 py-1 rounded text-xs font-semibold capitalize
-                        ${question.difficulty === 'bronze' 
-                          ? 'bg-yellow-100 text-yellow-800' 
-                          : question.difficulty === 'silver' 
-                            ? 'bg-gray-100 text-gray-800' 
-                            : 'bg-yellow-200 text-yellow-900'}
-                      `}>
-                        {question.difficulty}
-                      </span>
-                    </div>
-                    
-                    {answeredQuestions[question.id] ? (
-                      <div className="bg-green-50 text-green-700 p-3 rounded">
-                        You've already answered this question correctly!
-                      </div>
-                    ) : (
-                      <>
-                        <div className="space-y-2 mb-4">
-                          {question.options.map((option, index) => (
-                            <div 
-                              key={index}
-                              onClick={() => handleSelectAnswer(question.id, index)}
-                              className={`p-3 border rounded cursor-pointer transition-colors
-                                ${selectedAnswers[question.id] === index 
-                                  ? 'bg-blue-50 border-blue-300' 
-                                  : 'hover:bg-gray-50'}
-                              `}
-                            >
-                              {option}
-                            </div>
-                          ))}
-                        </div>
-                        
-                        <button
-                          onClick={() => submitAnswer(question.id)}
-                          disabled={selectedAnswers[question.id] === null || loading}
-                          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
-                        >
-                          Submit Answer
-                        </button>
-                      </>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-          
-          {step === 'gacha' && (
-            <div className="space-y-6">
-              <div className="bg-white p-6 rounded-lg shadow">
-                <h2 className="text-xl font-semibold mb-4">Gacha Wheel - Spin for THR!</h2>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <p className="text-sm text-gray-500">Spin Tokens</p>
-                    <p className="text-3xl font-bold">{spinTokens}</p>
-                  </div>
-                  
-                  <div className="bg-green-50 p-4 rounded-lg">
-                    <p className="text-sm text-gray-500">Total THR Earned</p>
-                    <p className="text-3xl font-bold">Rp {totalEarnings.toLocaleString()}</p>
-                  </div>
-                </div>
-                
-                <div className="flex justify-center mb-8">
-                  <button
-                    onClick={handleSpin}
-                    disabled={isSpinning || spinTokens <= 0 || loading}
-                    className={`px-8 py-4 rounded-full text-lg font-bold transition-transform ${
-                      isSpinning 
-                        ? 'animate-pulse bg-purple-500 text-white'
-                        : spinTokens > 0
-                          ? 'bg-blue-500 text-white hover:bg-blue-600 hover:scale-105'
-                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    }`}
-                  >
-                    {isSpinning ? 'Spinning...' : 'Spin the Wheel!'}
-                  </button>
-                </div>
-                
-                {gachaResult && (
-                  <div className="bg-yellow-50 border-2 border-yellow-200 p-4 rounded-lg text-center mb-6 animate-bounce">
-                    <p className="text-lg">Congratulations! You won:</p>
-                    <p className="text-3xl font-bold text-green-600 my-2">
-                      Rp {gachaResult.thrAmount.toLocaleString()}
-                    </p>
-                    <p className="text-sm text-gray-500">Tier: {gachaResult.tierName}</p>
-                  </div>
-                )}
-                
-                {/* History of spins */}
-                {spins.length > 0 && (
-                  <div>
-                    <h3 className="text-lg font-medium mb-3">Your Spin History</h3>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tier</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {spins.map((spin, index) => (
-                            <tr key={index}>
-                              <td className="px-4 py-2 whitespace-nowrap">{spin.tierName}</td>
-                              <td className="px-4 py-2 whitespace-nowrap">Rp {spin.thrAmount.toLocaleString()}</td>
-                              <td className="px-4 py-2 whitespace-nowrap text-sm">
-                                {new Date(spin.createdAt).toLocaleString()}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
+              <div className="bg-green-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-500">Total THR Earned</p>
+                <p className="text-3xl font-bold">Rp {totalEarnings.toLocaleString()}</p>
               </div>
             </div>
-          )}
+            
+            <div className="flex justify-center mb-8">
+              <button
+                onClick={handleSpin}
+                disabled={isSpinning || spinTokens <= 0 || loading}
+                className={`px-8 py-4 rounded-full text-lg font-bold transition-transform ${
+                  isSpinning 
+                    ? 'animate-pulse bg-purple-500 text-white'
+                    : spinTokens > 0
+                      ? 'bg-blue-500 text-white hover:bg-blue-600 hover:scale-105'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                {isSpinning ? 'Spinning...' : 'Spin the Wheel!'}
+              </button>
+            </div>
+            
+            {gachaResult && (
+              <div className="bg-yellow-50 border-2 border-yellow-200 p-4 rounded-lg text-center mb-6 animate-bounce">
+                <p className="text-lg">Congratulations! You won:</p>
+                <p className="text-3xl font-bold text-green-600 my-2">
+                  Rp {gachaResult.thrAmount.toLocaleString()}
+                </p>
+                <p className="text-sm text-gray-500">Tier: {gachaResult.tierName}</p>
+              </div>
+            )}
+            
+            {/* History of spins */}
+            {spins.length > 0 && (
+              <div>
+                <h3 className="text-lg font-medium mb-3">Your Spin History</h3>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tier</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {spins.map((spin, index) => (
+                        <tr key={index}>
+                          <td className="px-4 py-2 whitespace-nowrap">{spin.tierName}</td>
+                          <td className="px-4 py-2 whitespace-nowrap">Rp {spin.thrAmount.toLocaleString()}</td>
+                          <td className="px-4 py-2 whitespace-nowrap text-sm">
+                            {new Date(spin.createdAt).toLocaleString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -30,11 +30,11 @@ export default async function TriviaPage({ params }: { params: { roomId: string 
     );
   }
 
-  const questions = questionsResponse.data || [];
+  const groupedQuestions = questionsResponse.data || { bronze: [], silver: [], gold: [] };
   
   // Get user's current token balance
   const tokensResponse = await getSpinTokens(userId, roomId);
-  const tokenCount = tokensResponse.success ? tokensResponse.data.count : 0;
+  const tokenCount = tokensResponse.success ? tokensResponse.data.tokenCount : 0;
   
   // Server action for answering questions
   async function handleAnswerQuestion(questionId: string, answerIndex: number) {
@@ -45,10 +45,10 @@ export default async function TriviaPage({ params }: { params: { roomId: string 
   }
 
   return (
-    <div className="flex flex-col items-center justify-center p-4 bg-gray-50">
+    <div className="flex flex-col items-center justify-center p-4 bg-gray-50 min-h-screen">
       <ClientTriviaPage
         roomId={roomId}
-        questions={questions}
+        questions={groupedQuestions}
         initialTokenCount={tokenCount}
         onAnswerQuestion={handleAnswerQuestion}
       />

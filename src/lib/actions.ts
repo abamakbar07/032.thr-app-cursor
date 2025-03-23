@@ -325,7 +325,14 @@ export async function getActiveQuestions(roomId: string, userId: string) {
       ]
     }).sort({ difficulty: 1, createdAt: 1 });
     
-    return { success: true, data: questions };
+    // Group questions by difficulty tier
+    const groupedQuestions = {
+      bronze: questions.filter(q => q.difficulty === 'bronze'),
+      silver: questions.filter(q => q.difficulty === 'silver'),
+      gold: questions.filter(q => q.difficulty === 'gold')
+    };
+    
+    return { success: true, data: groupedQuestions };
   } catch (error: any) {
     console.error('Get active questions error:', error);
     return { 
@@ -339,6 +346,15 @@ export async function answerQuestion(questionId: string, userId: string, answerI
   try {
     await connectToDatabase();
     
+    // Validate inputs
+    if (!questionId || !userId) {
+      return { success: false, error: 'Missing required parameters' };
+    }
+    
+    if (typeof answerIndex !== 'number') {
+      return { success: false, error: 'Answer index must be a number' };
+    }
+    
     // Find the question
     const question = await Question.findById(questionId);
     if (!question) {
@@ -346,7 +362,7 @@ export async function answerQuestion(questionId: string, userId: string, answerI
     }
     
     // Check if the question is already solved by this user
-    if (question.solvedBy.includes(new mongoose.Types.ObjectId(userId))) {
+    if (question.solvedBy.some(id => id.toString() === userId)) {
       return { success: false, error: 'You have already answered this question' };
     }
     
@@ -374,7 +390,8 @@ export async function answerQuestion(questionId: string, userId: string, answerI
     console.error('Answer question error:', error);
     return { 
       success: false, 
-      error: error.message || 'Failed to answer question' 
+      error: error.message || 'Failed to answer question',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     };
   }
 }
